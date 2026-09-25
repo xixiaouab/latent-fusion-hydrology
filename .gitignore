@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.npy
+*.npz
+*.pt
+*.nc
+*.log
+runs/
+latents/
+dataset/
+masks/
+logs/
+h7_cache/
+.DS_Store

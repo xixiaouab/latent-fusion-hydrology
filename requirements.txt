@@ -1,0 +1,7 @@
+torch>=2.0
+numpy
+timm
+requests
+xarray
+zarr
+s3fs
