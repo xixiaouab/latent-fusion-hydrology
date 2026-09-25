@@ -140,6 +140,17 @@ shard; DDP all-reduces gradients once; all replicas stay identical.
 Effective batch = per-GPU batch × world × grad-accum = **128 in every
 reported cell** (e.g. 16×8, 2×8×8, 1×128).
 
+**Data sharding without a `DistributedSampler`:** since there is no
+epoch-over-a-dataset (training draws random `(basin, origin)` pairs from
+a huge index space), sharding reduces to giving each rank an independent
+random stream — `rng = np.random.default_rng(42 + rank)`,
+`src/fusion_train.py:572`. Ranks therefore sample *different* pairs with
+probability ≈ 1 (collisions are harmless — a duplicate pair is just an
+i.i.d. redraw), which is what makes the effective batch genuinely 128
+rather than 8 copies of 16. Evaluation, by contrast, runs on the fixed
+deterministic panel on rank 0 only, so reported numbers never depend on
+the rank layout.
+
 ### The "merge" question: one wrapper module, not two DDPs
 
 Wrapping two networks in two separate DDP objects creates two independent
