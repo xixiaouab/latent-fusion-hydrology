@@ -20,7 +20,7 @@ taken only from the 30 days before issue time).
 | Stream temperature | 0.873 | **0.908 (+0.035)** | 0.906 (+0.033) |
 | Regulated (dam-controlled) basins | 0.886 | 0.891 (+0.005) | ≈ 0 (negative control, as predicted) |
 | vs. National Water Model v2.1 | NWM retrospective scores **0.358** on the identical 384 evaluation windows — below even the masked baseline, despite being driven by observed weather | | |
-| Sub-hourly forecasting (Luxembourg) | *honestly excluded* — the spatial-latent archive is US + daily scale; this task is Europe + sub-hourly (domain mismatch; would require re-extracting European high-frequency latents) | | |
+| Sub-hourly forecasting (Luxembourg) | *honestly excluded* — the ORBIT-2 checkpoint we use was SFT'd on US daily fields, and our latent archive follows it (US + daily); this task is Europe + sub-hourly. ORBIT-2's *pretraining* is global + hourly, so the task is reachable — it needs a European high-frequency latent extraction (natural future work), not a different model | | |
 
 This covers all **five** downstream tasks of the time-series backbone:
 four measured, one excluded with the reason stated.
