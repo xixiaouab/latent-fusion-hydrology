@@ -49,6 +49,35 @@ Cross-task invariants:
 3. **Loss.** Pinball (quantile) loss in arcsinh space, median weighted 3×;
    effective batch 128; DDP data parallelism.
 
+## Data & variables
+
+**From CAMELS (671 US basins)** — the time-series model's target and geometry:
+
+| Content | Variables | Role |
+|---|---|---|
+| Observed daily discharge (`obsFlow`) | streamflow, cfs → mm/day (area-normalized) | forecast target + autoregressive history |
+| Daymet basin-mean forcing | `prcp_mmday`, `srad_wm2`, `tmax_c`, `tmin_c`, `vp_pa` | covariates of the legacy 5-variable protocol |
+| Basin geometry (`HCDN_nhru_final_671.shp`) | polygons, `AREA` (m²), 8-digit `hru_id` | ORBIT-2 token masks; flow normalization |
+
+CAMELS static catchment attributes are not used.
+
+**The 19 shared variables (headline protocol)** — basin-averaged for the
+time-series model, gridded (19 × 180 × 360/day) for ORBIT-2; canonical
+list at `src/extract_latents.py:77`:
+
+| Group | Variables |
+|---|---|
+| Static (4) | `land_sea_mask`, `landcover`, `orography`, `lattitude` (archive's own spelling) |
+| Temperature (4) | `2m_temperature`, `temperature_850/500/200` |
+| Wind (6) | `u_component_of_wind_850/500/200`, `v_component_of_wind_850/500/200` |
+| Humidity (3) | `specific_humidity_850/500/200` |
+| Water (2) | `total_precipitation_24hr`, `volumetric_soil_water_layer_1` |
+
+Both branches see the same 19 variables — basin-averaged vs. gridded — so
+the comparison isolates spatial structure alone. Splits: train 1980–2009,
+validation 2010–2012, test 2013–2014; 365-day calendar (leap years drop
+Dec 31). Full details: `docs/data_and_parallelism.md`.
+
 ## Repository layout
 
 ```
