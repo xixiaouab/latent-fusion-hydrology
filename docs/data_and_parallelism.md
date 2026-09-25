@@ -35,6 +35,24 @@ Two covariate sets are supported, selected by `--forcing-npy`
 For the stream-temperature task, streamflow itself joins the covariates
 (`--flow-as-covariate`): `src/fusion_train.py:289-291`.
 
+### What comes from CAMELS, exactly
+
+CAMELS (671 US basins) contributes three things to the pipeline:
+
+| CAMELS content | Variable(s) | Role | Where |
+|---|---|---|---|
+| Observed daily discharge (`obsFlow`) | streamflow, converted cfs → **mm/day** using basin area | **forecast target** + autoregressive input history | `streamflow.npy` (days × 671); areas from `meta.json` |
+| Daymet basin-mean forcing | `prcp_mmday`, `srad_wm2`, `tmax_c`, `tmin_c`, `vp_pa` (precipitation, shortwave radiation, max/min temperature, vapor pressure) | covariates of the **legacy 5-variable protocol** (early cells) | channel names recorded in `src/make_meta.py:17`; consumed via `forcing.npy` |
+| Basin geometry (`HCDN_nhru_final_671.shp`) | polygons + `AREA` (m²), `hru_id` zero-filled to 8 digits | ORBIT-2 token masks; area normalization of flow | `src/make_meta.py:11-14`; mask algorithm in `docs/protocol.md` |
+
+Under the **headline 19-variable protocol**, the Daymet covariates are
+replaced by basin means of the same 19 ERA5-Daymet variables ORBIT-2
+reads (built from the gridded archive by `src/mean19.py`), so the two
+branches share one variable set and the comparison isolates *spatial
+form* alone. CAMELS remains the source of truth for the target flow and
+the basin geometry in every protocol. CAMELS static catchment attributes
+(climate/soil/geology indices) are **not** used anywhere.
+
 **The fairness point:** the spatial branch (ORBIT-2) encodes *the same 19
 variables* as gridded CONUS fields (19×180×360/day). Both branches see
 identical information content; the only difference is whether spatial
