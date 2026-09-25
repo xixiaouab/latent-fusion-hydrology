@@ -64,6 +64,9 @@ src/
   dump_valpairs.py, nwm_fetch.py    # NWM v2.1 comparison on identical windows
 slurm/                 # Slurm launchers (fill in #SBATCH -A YOUR_PROJECT)
 docs/protocol.md       # masking protocol, fairness rules, metric definition
+docs/data_and_parallelism.md   # TS-model variables, the dataloader, time-alignment
+                               # guarantees, and how DDP handles the two-model merge
+                               # (with file:line pointers into the code)
 ```
 
 ## Setup
