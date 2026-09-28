@@ -27,8 +27,9 @@ over the 30 forecasts of the 2021 test year, checkpoint chosen on
 Nov–Dec 2020. ORBIT-2 here is the *global* checkpoint, run on a
 32°×32° ERA5 window around Luxembourg; latents come only from days before
 the issue day. The gain needs longer adapter training (3,000 steps; at 800
-steps it is ≈ 0). Full-parameter fine-tuning of ORBIT-2 on this task has
-not finished yet.
+steps it is ≈ 0). Full-parameter fine-tuning of ORBIT-2 (all 105M encoder
+weights in the training loop, 32 GPUs, 1,000 steps) scores 0.8307 against
+0.8292 for the identical run with ORBIT-2 frozen (+0.0015).
 
 This covers all **five** downstream tasks of the time-series backbone.
 
@@ -39,7 +40,8 @@ Cross-task invariants:
    operations, not information).
 2. **Fine-tuning ORBIT-2 has not beaten the frozen pipeline** — against
    architecture-matched frozen controls the net effect is small (+0.01
-   streamflow, −0.003 temperature, +0.015 Luxembourg), and so far the
+   streamflow, −0.003 temperature, +0.015 Luxembourg top block, +0.0015
+   Luxembourg full-parameter), and so far the
    fine-tuned model has never exceeded the frozen full-context pipeline. The
    pretrained spatial representation is already sufficient;
    compute is better spent on adapter capacity and longer latent windows
