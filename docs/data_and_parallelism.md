@@ -58,6 +58,61 @@ variables* as gridded CONUS fields (19×180×360/day). Both branches see
 identical information content; the only difference is whether spatial
 structure survives (grid) or is averaged away (basin mean).
 
+### The time-series model's native variables: CAMELSH
+
+The time-series backbone's own data format is **CAMELSH** (*A Large-Sample
+Hourly Hydrometeorological Dataset and Attributes at Watershed-Scale for
+CONUS*; Tran et al., *Scientific Data*, 2025): 9,008 CONUS basins,
+1980–2024, hourly. The
+model's public example basins are CAMELSH files, and its pipeline
+documentation reports checks on CAMELSH basins. The model itself has no
+fixed variable vocabulary: its pre-training script reads hourly and daily
+tables, auto-detects every numeric column, and at each step picks one
+channel at random as the target and treats the rest as known covariates.
+So any column set can be supplied at inference time; the CAMELSH set below
+is the one it is built around.
+
+| Column | Meaning | Unit (NLDAS-2) |
+|---|---|---|
+| `Tair` | near-surface (2 m) air temperature | K (the model's example files store °C) |
+| `Qair` | near-surface specific humidity | kg kg⁻¹ |
+| `PSurf` | surface pressure | Pa |
+| `Wind_E` | eastward wind (10 m) | m s⁻¹ |
+| `Wind_N` | northward wind (10 m) | m s⁻¹ |
+| `LWdown` | downward longwave radiation at the surface | W m⁻² |
+| `SWdown` | downward shortwave radiation at the surface | W m⁻² |
+| `Rainf` | total precipitation | kg m⁻² per hour (= mm h⁻¹) |
+| `CRainf_frac` | fraction of precipitation that is convective | 0–1 |
+| `CAPE` | convective available potential energy | J kg⁻¹ |
+| `PotEvap` | potential evaporation | kg m⁻² per hour (= mm h⁻¹) |
+| `Streamflow` | USGS observed discharge — the usual target | area-normalized mm/day in the model's streamflow examples |
+
+The eleven forcing columns come from NLDAS-2 (1/8°, hourly), averaged over
+each basin. Hourly USGS streamflow exists for 3,166 of the 9,008 basins.
+CAMELSH also ships static catchment attributes (439 from GAGES-II, 195 from
+HydroATLAS); the time-series model has **no static input**, so none of them
+are used, here or in its own examples.
+
+Sources: CAMELSH paper
+(<https://www.nature.com/articles/s41597-025-05612-6>), data
+(<https://zenodo.org/records/15413207>), code
+(<https://github.com/vinhngoctran/CAMELSH>).
+
+### What each downstream task fed the time-series model
+
+| Task | Step | Target | Covariates (history + future window) | Data |
+|---|---|---|---|---|
+| ① Streamflow, 671 CAMELS basins | daily | streamflow, mm/day (CAMELS `obsFlow`) | headline: basin means of the 19 shared variables (`forcing19.npy`); legacy cells: 5 Daymet variables (`src/fusion_train.py:31`); backbone-fine-tuning cells: the 15 dynamic variables (`forcing15.npy`; the 4 statics destabilize backbone fine-tuning) or the 5 Daymet ones | CAMELS + ERA5-Daymet archive |
+| ② Stream temperature | daily | water temperature, °C (USGS NWIS parameter 00010) | 5 Daymet variables + streamflow (`--flow-as-covariate`, `src/fusion_train.py:289`); fine-tuned-backbone cells: 15 dynamic + streamflow (`slurm/temp_big.sh:22`) | CAMELS + NWIS |
+| ③ Sub-hourly, Luxembourg (CAMELS-LUX basin 40) | 15 min | discharge `Q`, m³/s | `Precip`, `AirTemp` | the time-series model's example basin file |
+| ④ Regulated basin (Carson River, USGS 10312150) | daily | streamflow, mm/day | the 11 CAMELSH forcing columns (`src/exp4_train.py:34`); + `DamOutflow` (reservoir release from ResOpsUS, m³/s → mm/day) in the "with release" cells | the time-series model's example basin file (CAMELSH format) |
+| ⑤ vs. National Water Model | daily | same as ① | same as ① — identical 384 evaluation windows | CAMELS + NWM v2.1 retrospective |
+
+So the CAMELSH columns reach our experiments directly only in task ④. In the
+CAMELS tasks the backbone is fed daily basin means from CAMELS/Daymet or
+from the ERA5-Daymet archive shared with ORBIT-2, which is what keeps the
+two branches' information content identical.
+
 ---
 
 ## 2. The dataloader (`Store`) — and why alignment is by construction

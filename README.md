@@ -20,19 +20,28 @@ taken only from the 30 days before issue time).
 | Stream temperature | 0.873 | **0.908 (+0.035)** | 0.906 (+0.033) |
 | Regulated (dam-controlled) basins | 0.886 | 0.891 (+0.005) | ≈ 0 (negative control, as predicted) |
 | vs. National Water Model v2.1 | NWM retrospective scores **0.358** on the identical 384 evaluation windows — below even the masked baseline, despite being driven by observed weather | | |
-| Sub-hourly forecasting (Luxembourg) | *honestly excluded* — the ORBIT-2 checkpoint we use was SFT'd on US daily fields, and our latent archive follows it (US + daily); this task is Europe + sub-hourly. ORBIT-2's *pretraining* is global + hourly, so the task is reachable — it needs a European high-frequency latent extraction (natural future work), not a different model | | |
+| Sub-hourly forecasting (Luxembourg)‡ | 0.8245 | **0.8512 (+0.0267)** | 0.8433 (+0.0188) |
 
-This covers all **five** downstream tasks of the time-series backbone:
-four measured, one excluded with the reason stated.
+‡ Single basin (CAMELS-LUX 40), 15-minute steps, 24 h ahead: pooled NSE
+over the 30 forecasts of the 2021 test year, checkpoint chosen on
+Nov–Dec 2020. ORBIT-2 here is the *global* checkpoint, run on a
+32°×32° ERA5 window around Luxembourg; latents come only from days before
+the issue day. The gain needs longer adapter training (3,000 steps; at 800
+steps it is ≈ 0). Full-parameter fine-tuning of ORBIT-2 on this task has
+not finished yet.
+
+This covers all **five** downstream tasks of the time-series backbone.
 
 Cross-task invariants:
 
 1. **The harder the task, the larger the fusion gain** (streamflow ≫
    temperature ≫ dam-controlled, where the ceiling is set by human
    operations, not information).
-2. **Fine-tuning ORBIT-2 adds no net gain over freezing it** — measured
-   against architecture-matched frozen controls on two tasks (net +0.01 and
-   −0.003). The pretrained spatial representation is already sufficient;
+2. **Fine-tuning ORBIT-2 has not beaten the frozen pipeline** — against
+   architecture-matched frozen controls the net effect is small (+0.01
+   streamflow, −0.003 temperature, +0.015 Luxembourg), and so far the
+   fine-tuned model has never exceeded the frozen full-context pipeline. The
+   pretrained spatial representation is already sufficient;
    compute is better spent on adapter capacity and longer latent windows
    (30-day window ≫ 10-day: monthly-scale spatial memory — snowpack, soil
    moisture — is a major value source).
@@ -64,6 +73,13 @@ Cross-task invariants:
 | Basin geometry (`HCDN_nhru_final_671.shp`) | polygons, `AREA` (m²), 8-digit `hru_id` | ORBIT-2 token masks; flow normalization |
 
 CAMELS static catchment attributes are not used.
+
+**Native variables of the time-series model (CAMELSH).** The backbone's
+own data format is CAMELSH (hourly, 9,008 CONUS basins): 11 NLDAS-2
+forcing columns — `Tair`, `Qair`, `PSurf`, `Wind_E`, `Wind_N`, `LWdown`,
+`SWdown`, `Rainf`, `CRainf_frac`, `CAPE`, `PotEvap` — plus `Streamflow`,
+and no static attributes. Units, sources, and exactly what each downstream
+task fed the backbone: `docs/data_and_parallelism.md` §1.
 
 **The 19 shared variables (headline protocol)** — basin-averaged for the
 time-series model, gridded (19 × 180 × 360/day) for ORBIT-2; canonical
