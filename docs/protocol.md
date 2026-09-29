@@ -53,3 +53,41 @@ weights; basins smaller than one cell fall back to their centroid token.
 The median CAMELS basin covers ~3 tokens. Validated masks (671/671 basins)
 are archived with the data; the builder script operates on the CAMELS
 `HCDN_nhru_final_671` shapefile (NAD83, `hru_id` zero-filled to 8 digits).
+
+## Sub-hourly task (Luxembourg)
+
+- **Data.** One CAMELS-LUX basin (no. 40): 15-minute discharge `Q` (m³/s)
+  with `Precip` and `AirTemp`, 2020-01-01 to 2021-11-01 (the time-series
+  model's sub-hourly example file; path via `LUX_CSV` or `TS_MODEL_DIR`).
+- **Forecast.** 96 steps (24 h) from 8,760 steps (~91 days) of context, as in
+  the model's own example.
+- **Splits.** Training origins: every 15-minute step from 2020-04-01 whose
+  24 h target ends before 2020-11-01. Validation: 30 origins spread over
+  Nov–Dec 2020, used only for checkpoint selection. Test: the example
+  notebook's own 30 origins across 2021, reproduced exactly.
+- **Masking.** K = the number of trailing horizon steps whose future
+  covariates are hidden. K = 96 is fully blind (the headline setting); K = 0
+  is open-book, the example's setting.
+- **Latents.** ORBIT-2's *global* fine-tuned checkpoint (23 inputs, ERA5
+  0.25°) encodes a 128 × 128 window (32° × 32°, 36.25–68°N, 12°W–19.75°E) of
+  daily ERA5 aggregates. The basin latent is the mean of the 3 × 3 token box
+  over Luxembourg. The adapter sees the 30 calendar days *strictly before*
+  the issue day; the issue day itself is excluded because its daily
+  aggregate contains hours after the issue time.
+- **Metric.** Pooled NSE over the 30 test forecasts × 96 steps. The
+  open-book baseline reproduces the example's own anchor: median per-lead
+  NSE 0.9455 against the published 0.946.
+- **Global-checkpoint conventions** (each asserted in `extract_lux.py`):
+  the static layers are 720 × 1440, south-up (row 0 = −90°), longitude
+  0–359.75°, while ARCO-ERA5 is north-up, so the window is flipped. The
+  model re-interpolates its position embeddings on every forward assuming a
+  2:1 grid, which fails on a square window; the model is therefore built at
+  the checkpoint's own 92 × 184-token grid and that interpolation is
+  replaced by a centred crop (the embeddings are fixed sin-cos and the window
+  is already at the native 0.25°). The model's code calls `torch.distributed`
+  even on one GPU, so a one-rank gloo group is initialized. Precipitation is
+  kept in m/day, the unit of the checkpoint's own statistics.
+- **Multi-node binding.** With `--gpu-bind=closest`, ranks 6 and 7 of each
+  node landed on the same GCD (RCCL "Duplicate GPU detected");
+  `slurm/exp3_fullft.sh` requests `--gpus-per-node=8` without binding and
+  each rank selects `cuda:SLURM_LOCALID`.

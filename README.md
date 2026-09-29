@@ -29,7 +29,9 @@ Nov–Dec 2020. ORBIT-2 here is the *global* checkpoint, run on a
 the issue day. The gain needs longer adapter training (3,000 steps; at 800
 steps it is ≈ 0). Full-parameter fine-tuning of ORBIT-2 (all 105M encoder
 weights in the training loop, 32 GPUs, 1,000 steps) scores 0.8307 against
-0.8292 for the identical run with ORBIT-2 frozen (+0.0015).
+0.8292 for the identical run with ORBIT-2 frozen (+0.0015). Code:
+`src/era5_lux_fetch.py`, `src/extract_lux.py`, `src/exp3_*.py`,
+`slurm/exp3_*.sh`, `dtn/`; protocol: `docs/protocol.md`.
 
 This covers all **five** downstream tasks of the time-series backbone.
 
@@ -113,7 +115,12 @@ src/
   nwis_temp.py         # stream-temperature target download (NWIS 00010)
   exp4_eval.py, exp4_train.py       # regulated-basin (dam) experiments
   dump_valpairs.py, nwm_fetch.py    # NWM v2.1 comparison on identical windows
+  era5_lux_fetch.py    # sub-hourly task: ERA5 window around Luxembourg (public ARCO zarr)
+  extract_lux.py       # sub-hourly task: ORBIT-2 global-checkpoint latents for that window
+  exp3_train.py        # sub-hourly task: fusion cells (frozen / top-block fine-tuning), 1 GPU
+  exp3_fullft.py       # sub-hourly task: ORBIT-2 fully fine-tuned in the loop (multi-node DDP)
 slurm/                 # Slurm launchers (fill in #SBATCH -A YOUR_PROJECT)
+dtn/                   # sub-hourly task on a data-transfer node: staging, ERA5 fetch, CPU smoke test
 docs/protocol.md       # masking protocol, fairness rules, metric definition
 docs/data_and_parallelism.md   # TS-model variables, the dataloader, time-alignment
                                # guarantees, and how DDP handles the two-model merge
@@ -128,6 +135,7 @@ export FUSION_ROOT=/path/to/workdir        # holds dataset/, latents/, runs/, ma
 export TS_MODEL_DIR=/path/to/ts_model      # the time-series backbone package + weights/
 export ERA5_DAYMET_DIR=/path/to/era5-daymet/10.0_arcmin
 mkdir -p $FUSION_ROOT/logs                 # Slurm launchers write logs here
+mkdir -p $FUSION_ROOT/scripts && cp src/*.py $FUSION_ROOT/scripts/   # launchers run the code from here
 ```
 
 The pipeline expects, under `$FUSION_ROOT/dataset/`: `streamflow.npy`
@@ -154,6 +162,17 @@ sbatch slurm/fullft_frontier.sh            # full 126M in-loop fine-tuning (16 n
 # NWM comparison (needs outbound internet, e.g. a data-transfer node)
 python src/dump_valpairs.py                # freeze the exact evaluation windows
 python src/nwm_fetch.py                    # selective read of NOAA's public zarr
+
+# Sub-hourly task (Luxembourg, 15-min steps, 24 h ahead); protocol in docs/protocol.md
+# on a data-transfer node (outbound internet):
+bash dtn/exp3_stage.sh                     # ORBIT-2 global checkpoint, ERA5 stats, static layers
+nohup bash dtn/exp3_fetch.sh > $FUSION_ROOT/exp3/fetch.log 2>&1 &   # ERA5 window, ~40 min
+bash dtn/exp3_smoke_cpu.sh                 # optional: CPU check of every code path
+# on the GPU system:
+sbatch slurm/exp3_frontier.sh prep         # baseline anchors + ORBIT-2 latent extraction
+sbatch slurm/exp3_bundle.sh                # six frozen / top-block cells, one GPU each
+sbatch -N 4 slurm/exp3_fullft.sh lux_fullft 96 ft 1000 30 1 100          # full fine-tuning
+sbatch -N 4 slurm/exp3_fullft.sh lux_ft_frozenref 96 frozen 1000 30 1 100 # same run, ORBIT-2 frozen
 ```
 
 ## Honest notes

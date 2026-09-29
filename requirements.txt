@@ -5,3 +5,4 @@ requests
 xarray
 zarr
 s3fs
+gcsfs

@@ -104,7 +104,7 @@ Sources: CAMELSH paper
 |---|---|---|---|---|
 | ① Streamflow, 671 CAMELS basins | daily | streamflow, mm/day (CAMELS `obsFlow`) | headline: basin means of the 19 shared variables (`forcing19.npy`); legacy cells: 5 Daymet variables (`src/fusion_train.py:31`); backbone-fine-tuning cells: the 15 dynamic variables (`forcing15.npy`; the 4 statics destabilize backbone fine-tuning) or the 5 Daymet ones | CAMELS + ERA5-Daymet archive |
 | ② Stream temperature | daily | water temperature, °C (USGS NWIS parameter 00010) | 5 Daymet variables + streamflow (`--flow-as-covariate`, `src/fusion_train.py:289`); fine-tuned-backbone cells: 15 dynamic + streamflow (`slurm/temp_big.sh:22`) | CAMELS + NWIS |
-| ③ Sub-hourly, Luxembourg (CAMELS-LUX basin 40) | 15 min | discharge `Q`, m³/s | `Precip`, `AirTemp` | the time-series model's example basin file |
+| ③ Sub-hourly, Luxembourg (CAMELS-LUX basin 40) | 15 min | discharge `Q`, m³/s | `Precip`, `AirTemp` (`src/exp3_train.py:51`) | the time-series model's example basin file |
 | ④ Regulated basin (Carson River, USGS 10312150) | daily | streamflow, mm/day | the 11 CAMELSH forcing columns (`src/exp4_train.py:34`); + `DamOutflow` (reservoir release from ResOpsUS, m³/s → mm/day) in the "with release" cells | the time-series model's example basin file (CAMELSH format) |
 | ⑤ vs. National Water Model | daily | same as ① | same as ① — identical 384 evaluation windows | CAMELS + NWM v2.1 retrospective |
 
